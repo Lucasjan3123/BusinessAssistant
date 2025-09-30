@@ -1,0 +1,11 @@
+streamlit
+beautifulsoup4
+requests
+pdfplumber
+pytesseract
+pillow
+transformers
+torch
+diffusers
+plotly
+fpdf
