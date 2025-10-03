@@ -34,12 +34,14 @@ Tujuannya adalah menyediakan sebuah **AI Business Consultant** yang interaktif, 
    cd business-assistant-ai
 2. **Buat Virtual Environment (opsional tapi direkomendasikan)**
    ```bash
-  python -m venv venv
-source venv/bin/activate  # untuk Mac/Linux
-venv\Scripts\activate
+    python -m venv venv
+    source venv/bin/activate  # untuk Mac/Linux
+    venv\Scripts\activate
+   
 3. **Install Dependencies**
    ```bash
- pip install -r requirements.txt
+     pip install -r requirements.txt
+   
 4. **Jalankan Aplikasi**
    ```bash
- streamlit run mainApps.py
+      streamlit run mainApps.py
