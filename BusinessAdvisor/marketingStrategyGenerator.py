@@ -1,8 +1,126 @@
 import streamlit as st
 import requests
 
-st.markdown("# Marketing Strategy Generator Page  🎯")
+st.markdown("""
+    <style>
+    /* Background utama */
+    .stApp {
+        background: linear-gradient(135deg, #0f172a, #1e293b, #0f2027);
+        font-family: "Segoe UI", sans-serif;
+        color: #e2e8f0;
+    }
+
+    /* Card form */
+    .form-card {
+        background: rgba(255, 255, 255, 0.05);
+        backdrop-filter: blur(15px);
+        -webkit-backdrop-filter: blur(15px);
+        border-radius: 16px;
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        padding: 2rem;
+        box-shadow: 0px 8px 25px rgba(0,0,0,0.6), inset 0px 0px 15px rgba(0,234,255,0.1);
+        margin-top: 20px;
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+    .form-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0px 12px 30px rgba(0,234,255,0.3), inset 0px 0px 20px rgba(0,234,255,0.15);
+    }
+
+    /* Title */
+    .form-title {
+        font-size: 24px;
+        font-weight: 800;
+        background: linear-gradient(90deg, #00eaff, #38bdf8);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        margin-bottom: 18px;
+        text-shadow: 0px 0px 8px rgba(0,234,255,0.6);
+    }
+
+    /* Input & textarea */
+    .stTextInput input, .stTextArea textarea {
+        background: rgba(15, 23, 42, 0.75) !important;
+        border: 1px solid rgba(0,234,255,0.3) !important;
+        border-radius: 12px !important;
+        padding: 12px !important;
+        color: #f1f5f9 !important;
+        transition: all 0.3s ease;
+    }
+    .stTextInput input:focus, .stTextArea textarea:focus {
+        border-color: #00eaff !important;
+        box-shadow: 0px 0px 10px rgba(0,234,255,0.6);
+    }
+    .stTextInput input::placeholder, .stTextArea textarea::placeholder {
+        color: #94a3b8 !important;
+    }
+
+    /* Slider */
+    .stSlider > div > div > div {
+        color: #f8fafc !important;
+    }
+
+    }
+    div.stButton > button:hover {
+        transform: scale(1.07);
+        box-shadow: 0px 8px 28px rgba(0,234,255,0.8);
+    }
+
+    /* Result box */
+    .result-box {
+        background: rgba(15, 23, 42, 0.6);
+        border: 1px solid rgba(0,234,255,0.25);
+        border-radius: 14px;
+        padding: 1.5rem;
+        margin-top: 20px;
+        color: #e2e8f0;
+        font-size: 15px;
+        line-height: 1.6;
+        box-shadow: inset 0px 0px 15px rgba(0,234,255,0.15);
+    }
+     /* === Fix Input Text Visibility === */
+    .stTextInput input, .stTextArea textarea {
+        background: rgba(15, 23, 42, 0.85) !important;
+        border: 1px solid rgba(0,234,255,0.5) !important;
+        border-radius: 12px !important;
+        padding: 12px !important;
+        color: #ffffff !important;     /* teks input putih */
+        font-weight: 500 !important;
+    }
+    .stTextInput input::placeholder, .stTextArea textarea::placeholder {
+        color: #a0aec0 !important;     /* abu-abu terang */
+        font-style: italic !important;
+    }
+    .stTextInput label, .stTextArea label, .stSlider label {
+        color: #f8fafc !important;     /* label putih terang */
+        font-weight: 600 !important;
+    }
+
+    /* === Slider Label & Value === */
+    .stSlider label, .stSlider span {
+        color: #f8fafc !important;
+        font-weight: 600 !important;
+    }
+    
+    .result-box {
+    background: rgba(15, 23, 42, 0.6);
+    border: 1px solid rgba(0,234,255,0.25);
+    border-radius: 14px;
+    padding: 1.5rem;
+    margin-top: 20px;
+    color: #e2e8f0;
+    font-size: 15px;
+    line-height: 1.6;
+    box-shadow: inset 0px 0px 15px rgba(0,234,255,0.15);
+    }
+            
+    </style>
+""", unsafe_allow_html=True)
+
+
+
 st.sidebar.markdown("# Marketing Strategy Generator Page  🎯")
+st.markdown("# 🎯 Marketing Strategy Generator Page")
 st.sidebar.text_input("Enter your OpenRouter API Key:", type="password", key="api_key")
 
 def generate_prompt(business_type, target_audience, primary_media, budget_marketing, goals_marketing):
@@ -91,32 +209,33 @@ def get_response(api_key,prompt, temperature, max_tokens):
     except Exception:
         return "⚠️ AI unable to generate response"
     
-with st.form("marketing_strategy_form"):
-    col1, col2 = st.columns(2)
 
-    with col1:
-        business_types = st.text_input(
-            "Enter the business Type (e.g., technology, healthcare):"
-        )
-        target_audience = st.text_input(
-            "Enter the target audience (e.g., millennials, small businesses):"
-        )
-        primary_media = st.text_input(
-            "Enter the primary marketing media (e.g., social media, email, SEO):"
-        )
+st.markdown('<div class="form-card">', unsafe_allow_html=True)
+col1, col2 = st.columns(2)
 
-    with col2:
-        budget_marketing = st.slider(
-            "Enter the budget (e.g., 1000, 5000, 10000):",
-            10000000,
-            1000000000,
-            step=100,
-        )
-        goals_marketing = st.text_area(
-            "Enter your marketing goals (e.g., brand awareness, lead generation):"
-        )
+with col1:
+    business_types = st.text_input(
+        "Enter the business Type (e.g., technology, healthcare):"
+    )
+    target_audience = st.text_input(
+        "Enter the target audience (e.g., millennials, small businesses):"
+    )
+    primary_media = st.text_input(
+        "Enter the primary marketing media (e.g., social media, email, SEO):"
+    )
 
-    submit_button = st.form_submit_button("Generate Marketing Strategy")
+with col2:
+    budget_marketing = st.slider(
+        "Enter the budget (e.g., 1000, 5000, 10000):",
+        10000000,
+        1000000000,
+        step=100,
+    )
+    goals_marketing = st.text_area(
+        "Enter your marketing goals (e.g., brand awareness, lead generation):"
+    )
+
+submit_button = st.button("Generate Marketing Strategy")
 
 if submit_button:
     if not business_types or not target_audience or not primary_media or not budget_marketing or not goals_marketing:
@@ -131,4 +250,4 @@ if submit_button:
         if response:
                 st.success("✅ Marketing Strategy Generated!")
                 st.subheader("📊 Generated Marketing Strategy:")
-                st.write(response)
+                st.markdown(f'<div class="result-box">{response}</div>', unsafe_allow_html=True) 
