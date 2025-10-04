@@ -57,14 +57,14 @@ Tujuannya adalah menyediakan sebuah **AI Business Consultant** yang interaktif, 
 
 <img width="1869" height="916" alt="gambar" src="https://github.com/user-attachments/assets/92fd955e-3361-4258-ae18-39a32bbdd136" />
 
+
+<img width="1869" height="850" alt="gambar" src="https://github.com/user-attachments/assets/984c56e3-4f87-4cec-b691-f282d03c1e35" />
+
 <img width="1871" height="908" alt="gambar" src="https://github.com/user-attachments/assets/da8d1311-c863-478a-8f50-f753fbf6c774" />
 
 <img width="1871" height="910" alt="gambar" src="https://github.com/user-attachments/assets/3b8e4dac-9707-4f3b-abff-debf1ae5729a" />
 
-
-
-
-<img width="1869" height="850" alt="gambar" src="https://github.com/user-attachments/assets/984c56e3-4f87-4cec-b691-f282d03c1e35" />
+<img width="1856" height="908" alt="gambar" src="https://github.com/user-attachments/assets/ec2b9c5c-4957-440e-81ec-62b78d56b82f" />
 
 <img width="1865" height="914" alt="gambar" src="https://github.com/user-attachments/assets/41d6a54b-8ab5-4118-bb55-ea7aadeddb22" />
 
