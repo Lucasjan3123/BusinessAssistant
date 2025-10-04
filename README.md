@@ -78,6 +78,7 @@ Tujuannya adalah menyediakan sebuah **AI Business Consultant** yang interaktif, 
 <img width="1869" height="919" alt="gambar" src="https://github.com/user-attachments/assets/5c524593-5516-4037-8fc5-2ca1511b3f0f" />
 
 
-
+## Link Deploy 
+https://businessassistant-kewaagi4vlpzszq39ppczc.streamlit.app/
 
 
