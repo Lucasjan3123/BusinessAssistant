@@ -9,4 +9,4 @@ torch
 diffusers
 plotly
 fpdf
-kaleido
+
