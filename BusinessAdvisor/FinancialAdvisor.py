@@ -362,50 +362,46 @@ def run_financial_advisor():
             st.markdown(f'<div class="result-box">{ai_result}</div>', unsafe_allow_html=True)
 
                 # === PDF Download with Charts ===
-        if st.button("📥 Download Full Financial Report (PDF)"):
+           if st.button("📥 Download Full Financial Report (PDF)"):
             from fpdf import FPDF
-            import plotly.io as pio
-            import tempfile, os
             from io import BytesIO
-
+            import tempfile
+            import os
+        
             pdf = FPDF()
             pdf.add_page()
             pdf.set_font("Arial", "B", 16)
             pdf.cell(200, 10, "Financial Advisor Report", ln=True, align="C")
-
+        
             pdf.set_font("Arial", size=12)
             pdf.multi_cell(0, 10, f"Company Goal: {goal}\n\nAI Analysis:\n{ai_result}\n")
-
+        
             pdf.set_font("Arial", "B", 14)
-            pdf.cell(200, 10, "Financial Charts", ln=True, align="L")
-
-            # ✅ Simpan semua grafik ke file sementara (gunakan kaleido)
-            figures = [fig1, fig2, fig3, fig4]
-            image_paths = []
-            for i, fig in enumerate(figures):
-                tmp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".png")
-                fig.write_image(tmp_file.name, format="png", scale=2)  # Warna penuh
-                image_paths.append(tmp_file.name)
-                pdf.image(tmp_file.name, w=180)
-                pdf.ln(5)
-
-            # ✅ Simpan hasil PDF ke memori
+            pdf.cell(200, 10, "Financial Charts (Preview)", ln=True, align="L")
+            pdf.ln(10)
+        
+            # Gantikan grafik dengan teks representasi (karena tidak bisa export kaleido)
+            pdf.set_font("Arial", size=11)
+            pdf.multi_cell(0, 8, "Revenue vs Cost Chart\nProfit Trend Chart\nFinancial Composition Chart\nSWOT Analysis Chart")
+            pdf.ln(5)
+        
+            pdf.set_font("Arial", "B", 14)
+            pdf.cell(200, 10, "AI Strategic Recommendation", ln=True, align="L")
+            pdf.set_font("Arial", size=12)
+            pdf.multi_cell(0, 10, ai_result)
+        
             pdf_buffer = BytesIO()
             pdf.output(pdf_buffer)
             pdf_buffer.seek(0)
-
-            # ✅ Tombol download PDF
+        
             st.download_button(
-                label="⬇️ Download Full PDF Report (Colored)",
+                label="⬇️ Download Full PDF Report (No Kaleido)",
                 data=pdf_buffer,
                 file_name="Financial_Advisor_Report.pdf",
                 mime="application/pdf"
             )
 
-            # ✅ Bersihkan file sementara
-            for path in image_paths:
-                os.unlink(path)
-
 
 
 run_financial_advisor()
+
