@@ -1,17 +1,13 @@
 import streamlit as st
 import pdfplumber
 import plotly.express as px
-import plotly.graph_objects as go
 import pandas as pd
-import numpy as np
 import re
 import requests
-import json
+from io import BytesIO
 from fpdf import FPDF
 import tempfile
-import os
-from io import BytesIO
-
+import plotly.graph_objects as go
 
 
 def save_figures_to_images(figures):
@@ -23,53 +19,7 @@ def save_figures_to_images(figures):
         image_paths.append(tmp_file.name)
     return image_paths
 
-def query_hf_api(api_key, prompt, temperature=0.7, max_tokens=1200):
-    if not api_key:
-        st.error("Please enter your API key first.")
-        return None
-
-    try:
-        response = requests.post(
-            url="https://openrouter.ai/api/v1/chat/completions",
-            headers={
-                "Content-Type": "application/json",
-                "Authorization": f"Bearer {api_key}"
-            },
-            json={
-                "model": "meta-llama/Llama-3.3-70B-Instruct",
-                "messages": prompt,
-                "max_tokens": max_tokens,
-                "temperature": temperature,
-            },
-            timeout=30
-        )
-
-        if response.status_code != 200:
-            try:
-                error_msg = response.json().get("error", {}).get("message", response.text)
-            except:
-                error_msg = response.text
-            st.error(f"⚠️ Model Error ({response.status_code}): {error_msg}")
-            return None
-
-        data = response.json()
-        return data["choices"][0]["message"]["content"]
-
-    except Exception as e:
-        st.error(f"⚠️ Request Error: {e}")
-        return None
-
-    except requests.exceptions.Timeout:
-        st.error("⚠️ Request timeout. Try again.")
-        return "⚠️ Request timeout. Try again."
-
-    except requests.exceptions.ConnectionError:
-        st.error("⚠️ Unable to connect to the model server. Please check your internet connection.")
-        return "⚠️ Unable to connect to the model server. Please check your internet connection."
-
-    except Exception:
-        return "⚠️ AI unable to generate response"
-
+# ===================== 🔍 Extract Text from PDF =====================
 def extract_text_from_pdf(pdf_file):
     text = ""
     with pdfplumber.open(pdf_file) as pdf:
@@ -79,27 +29,92 @@ def extract_text_from_pdf(pdf_file):
                 text += page_text + "\n"
     return text
 
-def parse_financials(text):
-    patterns = {
-        "Revenue": r"(Revenue|Pendapatan|Penjualan)\D+([\d,\.]+)",
-        "Cost": r"(Cost|Beban|Pengeluaran)\D+([\d,\.]+)",
-        "Profit": r"(Profit|Laba)\D+([\d,\.]+)",
-        "Debt": r"(Debt|Utang)\D+([\d,\.]+)"
-    }
-    data = {}
-    for key, pattern in patterns.items():
-        match = re.search(pattern, text, re.IGNORECASE)
+
+# ===================== 📊 Parse Financial Data =====================
+def parse_financials_dynamic(text):
+    """Parse data keuangan dari laporan PDF, bisa tahunan atau bulanan."""
+    years = re.findall(r"\b(20\d{2})\b", text)
+    months = re.findall(
+        r"(Januari|Februari|Maret|April|Mei|Juni|Juli|Agustus|September|Oktober|November|Desember)",
+        text, flags=re.IGNORECASE
+    )
+
+    def extract_value(pattern):
+        match = re.search(pattern + r".*?([\d.,]+)", text, flags=re.IGNORECASE)
         if match:
             try:
-                value = float(match.group(2).replace(",", "").replace(".", ""))
-                data[key] = value
-            except:
-                pass
-    return data
+                # Ambil grup ke-2, karena grup ke-1 berisi kata "Pendapatan"
+                value = match.group(2) if match.lastindex >= 2 else match.group(1)
+                return float(value.replace(".", "").replace(",", ""))
+            except Exception:
+                return 0
+        return 0
 
+
+    # Ambil data utama
+    revenue = extract_value(r"(Pendapatan|Penjualan|Revenue)")
+    cost = extract_value(r"(Beban|Cost|Pengeluaran)")
+    profit = extract_value(r"(Laba|Profit|Rugi)")
+    debt = extract_value(r"(Utang|Liabilitas|Debt)")
+
+        # Tentukan mode waktu
+    if len(set(years)) > 1:
+        time_mode = "year"
+        labels = sorted(set(years))
+    elif months:
+        time_mode = "month"
+        labels = [m.capitalize() for m in months]
+    else:
+        time_mode = "single"
+        labels = [years[0] if years else "Unknown"]
+
+    # Buat DataFrame agar tetap tampil di grafik
+    df = pd.DataFrame({
+        "Period": labels,
+        "Revenue": [revenue] * len(labels),
+        "Cost": [cost] * len(labels),
+        "Profit": [profit] * len(labels),
+        "Debt": [debt] * len(labels),
+    })
+
+    return df, time_mode
+
+
+# ===================== 🧠 Query AI =====================
+def query_hf_api(api_key, prompt, temperature=0.7, max_tokens=1200):
+    if not api_key:
+        st.error("Please enter your API key first.")
+        return None
+
+    try:
+        response = requests.post(
+            "https://openrouter.ai/api/v1/chat/completions",
+            headers={
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {api_key}",
+            },
+            json={
+                "model": "meta-llama/Llama-3.3-70B-Instruct",
+                "messages": prompt,
+                "max_tokens": max_tokens,
+                "temperature": temperature,
+            },
+            timeout=30,
+        )
+        if response.status_code != 200:
+            st.error(f"Model Error {response.status_code}: {response.text}")
+            return None
+
+        return response.json()["choices"][0]["message"]["content"]
+
+    except Exception as e:
+        st.error(f"Request Error: {e}")
+        return None
+
+
+# ===================== 🎨 Streamlit UI =====================
 def run_financial_advisor():
-            
-        st.markdown("""
+    st.markdown("""
     <style>
     /* Background utama */
     .stApp {
@@ -213,243 +228,201 @@ def run_financial_advisor():
              font-size: 15px !important;
          }
 
-    /* ==== FILE UPLOADER ==== */
-    .stFileUploader label {
-        color: #ffffff !important;       /* Label "Upload file" putih */
-        font-weight: 600 !important;
-    }
+        /* ==== FILE UPLOADER ==== */
+        .stFileUploader label {
+            color: #ffffff !important;       /* Label "Upload file" putih */
+            font-weight: 600 !important;
+        }
 
-    /* Kotak list file (full putih) */
-    .stFileUploader div[data-testid="stFileUploaderFile"] {
-        background: #ffffff !important;      /* Putih */
-        border: 2px solid #00eaff !important;
-        border-radius: 8px !important;
-        padding: 8px 12px !important;
-        display: flex;
-        align-items: center;
-    }
+        /* Kotak list file (full putih) */
+        .stFileUploader div[data-testid="stFileUploaderFile"] {
+            background: #ffffff !important;      /* Putih */
+            border: 2px solid #00eaff !important;
+            border-radius: 8px !important;
+            padding: 8px 12px !important;
+            display: flex;
+            align-items: center;
+        }
 
-    /* Nama file */
-    .stFileUploader div[data-testid="stFileUploaderFile"] .uploadedFileName {
-        color: #0f172a !important;   /* Hitam */
-        font-weight: 600 !important;
-        font-size: 14px !important;
-    }
+        /* Nama file */
+        .stFileUploader div[data-testid="stFileUploaderFile"] .uploadedFileName {
+            color: #0f172a !important;   /* Hitam */
+            font-weight: 600 !important;
+            font-size: 14px !important;
+        }
 
-    /* Ukuran file */
-    .stFileUploader div[data-testid="stFileUploaderFile"] .uploadedFileSize {
-        color: #334155 !important;   /* Abu gelap */
-        font-size: 12px !important;
-    }
+        /* Ukuran file */
+        .stFileUploader div[data-testid="stFileUploaderFile"] .uploadedFileSize {
+            color: #334155 !important;   /* Abu gelap */
+            font-size: 12px !important;
+        }
 
-    /* Ikon file */
-    .stFileUploader div[data-testid="stFileUploaderFile"] svg {
-        stroke: #0f172a !important;   /* Ikon hitam */
-    }
+        /* Ikon file */
+        .stFileUploader div[data-testid="stFileUploaderFile"] svg {
+            stroke: #0f172a !important;   /* Ikon hitam */
+        }
 
-    /* Tombol X hapus file */
-    .stFileUploader div[data-testid="stFileUploaderFile"] button {
-        color: #0f172a !important;    /* Hitam */
-        font-weight: bold !important;
-    }
-    .stFileUploader div[data-testid="stFileUploaderFile"] button:hover {
-        color: #1e293b !important;    /* Abu lebih gelap saat hover */
-        transform: scale(1.1);
-    }
+        /* Tombol X hapus file */
+        .stFileUploader div[data-testid="stFileUploaderFile"] button {
+            color: #0f172a !important;    /* Hitam */
+            font-weight: bold !important;
+        }
+        .stFileUploader div[data-testid="stFileUploaderFile"] button:hover {
+            color: #1e293b !important;    /* Abu lebih gelap saat hover */
+            transform: scale(1.1);
+        }
 
-   /* Result box */
-    .result-box {
-        background: rgba(15, 23, 42, 0.6);
-        border: 1px solid rgba(0,234,255,0.25);
-        border-radius: 14px;
-        padding: 1.5rem;
-        margin-top: 20px;
-        color: #e2e8f0;
-        font-size: 15px;
-        line-height: 1.6;
-        box-shadow: inset 0px 0px 15px rgba(0,234,255,0.15);
-    }
+    /* Result box */
+        .result-box {
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid rgba(0,234,255,0.25);
+            border-radius: 14px;
+            padding: 1.5rem;
+            margin-top: 20px;
+            color: #e2e8f0;
+            font-size: 15px;
+            line-height: 1.6;
+            box-shadow: inset 0px 0px 15px rgba(0,234,255,0.15);
+        }
 
-    </style>
-    """, unsafe_allow_html=True)
+        </style>
+        """, unsafe_allow_html=True)
+         
+    st.header("💰 Financial Advisor (Dynamic & AI-Powered)")
+    st.sidebar.text_input("Enter your OpenRouter API Key:", type="password", key="api_key")
+    API_KEY = st.session_state.get("api_key", "")
 
-        st.header("💰 Financial Advisor Page")
-        st.sidebar.markdown("# Financial Advisor Page 💰")
-        st.sidebar.text_input("Enter your OpenRouter API Key:", type="password", key="api_key")
+    uploaded_file = st.file_uploader("📑 Upload company financial report (PDF)", type=["pdf"])
+    goal = st.text_input("🎯 What is the company's goal? (expansion, efficiency, attract investors, etc.)")
 
-        API_KEY = st.session_state.get("api_key", "")
-        uploaded_file = st.file_uploader("📑 Upload company financial report (PDF)", type=["pdf"])
-        goal = st.text_input("🎯 What is the company's goal? (expansion, efficiency, attract investors, etc.)")
+    if uploaded_file and goal:
+        st.info("🔎 Reading and analyzing financial data...")
+        report_text = extract_text_from_pdf(uploaded_file)
+        df, mode = parse_financials_dynamic(report_text)
 
-        if uploaded_file is not None and goal:
-            st.info("🔎 Reading financial report...")
-            report_text = extract_text_from_pdf(uploaded_file)
+        st.write(f"📅 **Detected mode:** {'Yearly' if mode=='year' else 'Monthly'}")
+        st.dataframe(df)
 
-            if not report_text.strip():
-                st.error("⚠️ Unable to read PDF content. Make sure the file contains text, not just scanned images.")
-                return
+        # === 1️⃣ Bar Chart: Summary ===
+        st.subheader("📊 Overall Financial Summary")
+        summary_df = df[["Revenue", "Cost", "Profit", "Debt"]].sum().reset_index()
+        summary_df.columns = ["Metric", "Value"]
+        fig1 = px.bar(summary_df, x="Metric", y="Value", title="Total Financial Performance", color="Metric")
+        st.plotly_chart(fig1, use_container_width=True)
 
-            st.subheader("📄 Financial Report Preview")
-            st.write(report_text[:800] + "...")
+        # === 2️⃣ Line Chart: Profit Trend ===
+        st.subheader("📈 Profit Trend Over Time")
+        fig2 = px.line(df, x="Period", y="Profit", markers=True, title="Profit Trend", color_discrete_sequence=["#00BFFF"])
+        st.plotly_chart(fig2, use_container_width=True)
 
-            parsed = parse_financials(report_text)
-            st.write("📊 Extracted Data:", parsed)
+        # === 3️⃣ Grouped Bar Chart: Revenue vs Cost ===
+        st.subheader("📊 Revenue vs Cost Comparison")
+        fig3 = px.bar(df, x="Period", y=["Revenue", "Cost"], barmode="group", title="Revenue vs Cost (Dynamic)", color_discrete_sequence=px.colors.qualitative.Set1)
+        st.plotly_chart(fig3, use_container_width=True)
 
-            if not parsed:
-                st.error("⚠️ No Revenue/Cost/Profit/Debt data found in report.")
-                return
+        # === 4️⃣ Pie Chart: Composition ===
+        st.subheader("🥧 Financial Composition")
+        comp_data = {
+            "Revenue": df["Revenue"].sum(),
+            "Cost": df["Cost"].sum(),
+            "Profit": df["Profit"].sum(),
+            "Debt": df["Debt"].sum(),
+        }
+        fig4 = px.pie(values=comp_data.values(), names=comp_data.keys(), title="Financial Composition")
+        st.plotly_chart(fig4, use_container_width=True)
 
-            # ✅ Build AI Prompt
-            prompt = [
-                {"role": "system", "content": "You are a financial analyst and strategist."},
-                {"role": "user", "content": f"""
-                Based on this company's extracted financial data:
+        # === 🧠 AI Analysis ===
+        st.subheader("🤖 AI Strategic Recommendation")
+        prompt = [
+            {"role": "system", "content": """
+        You are a world-class financial analyst and corporate strategist. 
+        Your job is to analyze company financial reports and generate insights, risk evaluations, and strategic recommendations.
+        Always consider both numerical data and written financial context.
+        """},
+            {"role": "user", "content": f"""
+        Below is the raw extracted financial text from the company's PDF report:
+        --------------------
+        {report_text[:4000]}  # Limit supaya tidak overload token
+        --------------------
 
-                Revenue: {parsed.get("Revenue", 0)}
-                Cost: {parsed.get("Cost", 0)}
-                Profit: {parsed.get("Profit", 0)}
-                Debt: {parsed.get("Debt", 0)}
+        Below is the structured numerical data parsed from the report:
+        {df.to_string(index=False)}
 
-                Company's goal: {goal}
+        The company's stated goal is: "{goal}"
 
-                Task:
-                1. Use these numbers as 'scores'.
-                2. Build a JSON response with:
-                    - scores (Revenue, Cost, Profit, Debt)
-                    - trend (2019-2023 profit trend)
-                    - comparison (2019-2023 revenue vs cost)
-                    - composition (Strengths, Weaknesses, Risks, Opportunities as integer values)
-                    - recommendation (strategic text advice)
+        Your tasks:
+        1. Analyze the financial performance — profitability, efficiency, and debt management.
+        2. Identify trends and anomalies using both the numeric data and textual report.
+        3. Classify the company's financial health as 'Excellent', 'Moderate', or 'Poor'.
+        4. Provide detailed, actionable recommendations to achieve the company's goal.
+        5. Summarize your findings clearly and concisely.
+        Output your analysis in well-structured paragraphs.
+        """}
+        ]
+        ai_result = query_hf_api(API_KEY, prompt)
+        if ai_result:
+            st.markdown(f'<div class="result-box">{ai_result}</div>', unsafe_allow_html=True)
 
-                Return ONLY JSON in this format:
-                {{
-                "scores": {{"Revenue": int, "Cost": int, "Profit": int, "Debt": int}},
-                "trend": {{
-                    "Year": [2019, 2020, 2021, 2022, 2023],
-                    "ProfitTrend": [int, int, int, int, int]
-                }},
-                "comparison": {{
-                    "Year": [2019, 2020, 2021, 2022, 2023],
-                    "Revenue": [int, int, int, int, int],
-                    "Cost": [int, int, int, int, int]
-                }},
-                "composition": {{
-                    "Strengths": int,
-                    "Weaknesses": int,
-                    "Risks": int,
-                    "Opportunities": int
-                }},
-                "recommendation": "text"
-                }}
-                """}
-            ]
+            # === PDF Download with Charts ===
+        if st.button("📥 Download Full Financial Report (PDF)"):
+            pdf_buffer = BytesIO()
 
-            result = query_hf_api(API_KEY, prompt)
+        # 🔹 Simpan semua grafik ke memori (bukan file)
+        image_buffers = []
+        for fig in [fig1, fig2, fig3, fig4]:
+            # ✅ Pastikan background putih dan warna tidak transparan
+            fig.update_layout(
+                paper_bgcolor='white',
+                plot_bgcolor='white',
+                font_color='black',
+                legend=dict(bgcolor='rgba(255,255,255,0.8)'),
+            )
 
-            if result:
-                try:
-                    # 🔹 Bersihkan jika AI balikin dengan ```json ... ```
-                    clean_result = re.sub(r"^```(json)?", "", result.strip(), flags=re.MULTILINE)
-                    clean_result = re.sub(r"```$", "", clean_result.strip(), flags=re.MULTILINE)
-                    clean_result = clean_result.strip()
+            # ✅ Untuk pie chart: pastikan warnanya eksplisit dan tidak hilang
+            if isinstance(fig.data[0], go.Pie):
+                fig.update_traces(
+                    marker=dict(
+                        colors=px.colors.qualitative.Pastel + px.colors.qualitative.Set2,
+                        line=dict(color='white', width=2)
+                    ),
+                    textfont=dict(color='black')
+                )
 
-                    # 🔹 Parse ke JSON
-                    data_json = json.loads(clean_result)
+            # ✅ Simpan gambar dengan engine kaleido dan background putih
+            img_bytes = fig.to_image(format="png", scale=2, engine="kaleido")
+            image_buffers.append(img_bytes)
 
-                    st.success("✅ JSON parsed successfully!")
+        # 🔹 Buat PDF baru
+        pdf = FPDF()
+        pdf.add_page()
+        pdf.set_font("Arial", "B", 16)
+        pdf.cell(200, 10, "Financial Advisor Report", ln=True, align="C")
 
-                    # === Grafik 1: Scores (Bar Chart) ===
-                    st.subheader("📊 Financial Scores")
-                    df_scores = pd.DataFrame(list(data_json["scores"].items()), columns=["Metric", "Value"])
-                    fig1 = px.bar(df_scores, x="Metric", y="Value", title="Financial Scores",color_discrete_sequence=px.colors.qualitative.Set2)
-                    st.plotly_chart(fig1, use_container_width=True)
+        pdf.set_font("Arial", size=12)
+        pdf.multi_cell(0, 10, f"Company Goal: {goal}\n\nAI Analysis:\n{ai_result}\n")
 
-                    # === Grafik 2: Profit Trend (Line Chart) ===
-                    st.subheader("📈 Profit Trend (2019-2023)")
-                    df_trend = pd.DataFrame(data_json["trend"])
-                    fig2 = px.line(df_trend, x="Year", y="ProfitTrend", markers=True, title="Profit Trend",color_discrete_sequence=["#00BFFF"])
-                    st.plotly_chart(fig2, use_container_width=True)
+        pdf.set_font("Arial", "B", 14)
+        pdf.cell(200, 10, "Financial Charts", ln=True, align="L")
 
-                    # === Grafik 3: Revenue vs Cost (Grouped Bar Chart) ===
-                    st.subheader("📊 Revenue vs Cost Comparison")
-                    df_comp = pd.DataFrame(data_json["comparison"])
-                    fig3 = px.bar(df_comp, x="Year", y=["Revenue", "Cost"], barmode="group", title="Revenue vs Cost", color_discrete_sequence=px.colors.qualitative.Set1)
-                    st.plotly_chart(fig3, use_container_width=True)
+        # 🔹 Masukkan semua grafik dari memori
+        for img_bytes in image_buffers:
+            tmp_img = BytesIO(img_bytes)
+            tmp_img.seek(0)
+            pdf.image(tmp_img, w=180)
+            pdf.ln(5)
 
-                    # === Grafik 4: SWOT Composition (Pie Chart) ===
-                    st.subheader("📊 SWOT Composition")
-                    df_swot = pd.DataFrame(list(data_json["composition"].items()), columns=["Category", "Value"])
-                    fig4 = px.pie(df_swot, names="Category",values="Value", title="SWOT Composition", color_discrete_sequence=px.colors.qualitative.Pastel)
-                    st.plotly_chart(fig4, use_container_width=True)
+        # 🔹 Simpan hasil PDF ke memori
+        pdf_output = BytesIO()
+        pdf.output(pdf_output)
+        pdf_output.seek(0)
 
-                    # === Recommendation ===
-                    st.subheader("🤖 AI Strategic Recommendation")
-                    recommendation = data_json["recommendation"]
-                    st.markdown(f'<div class="result-box">{recommendation}</div>', unsafe_allow_html=True)
-
-                    if st.button("📥 Download Report (PDF with Charts)"):
-
-                        figures = [fig1, fig2,fig3,fig4]  # tambahkan fig lain kalau ada
-                        image_paths = save_figures_to_images(figures)
-
-                        pdf = FPDF()
-                        pdf.add_page()
-                        pdf.set_font("Arial", "B", 16)
-                        pdf.cell(200, 10, "Financial Advisor Report", ln=True, align="C")
-
-                        pdf.set_font("Arial", size=12)
-                        pdf.multi_cell(0, 10, f"Business Goal: {goal}\n")
-                        pdf.multi_cell(0, 10, f"Scores: {data_json['scores']}\n")
-
-                        pdf.set_font("Arial", "B", 14)
-                        pdf.cell(200, 10, "AI Strategic Recommendation", ln=True, align="L")
-
-                        # ✅ Wrap teks supaya aman
-                        import textwrap
-                        recommendation_text = data_json["recommendation"]
-                        wrapped_recommendation = "\n".join(textwrap.wrap(recommendation_text, width=90))
-                        pdf.set_font("Arial", size=12)
-                        pdf.multi_cell(0, 10, wrapped_recommendation)
-
-                        # Tambahkan grafik
-                        pdf.set_font("Arial", "B", 14)
-                        pdf.cell(200, 10, "Financial Charts", ln=True, align="L")
-                        for img_path in image_paths:
-                            pdf.image(img_path, w=180)
-                            pdf.ln(5)
-
-                        pdf_buffer = BytesIO()
-                        pdf.output(pdf_buffer)
-                        pdf_buffer.seek(0)
-
-                        tmp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".pdf")
-                        pdf.output(tmp_file.name)
-
-                        with open(tmp_file.name, "rb") as f:
-                            st.download_button(
-                                label="⬇️ Download Full PDF Report (Colored)",
-                                data=f,
-                                file_name="Financial_Advisor_Report.pdf",
-                                mime="application/pdf"
-                            )
+        # 🔹 Tombol download PDF
+        st.download_button(
+            label="⬇️ Download PDF Report (Colored)",
+            data=pdf_output,
+            file_name="Financial_Advisor_Report.pdf",
+            mime="application/pdf"
+        )
 
 
-                        for path in image_paths:
-                            os.unlink(path)
-
-                except Exception as e:
-                    st.error(f"⚠️ JSON Parsing Error: {e}")
-                    st.text("Raw AI output:\n" + result)
-
-
-def save_figures_to_images(figures):
-    image_paths = []
-    for i, fig in enumerate(figures):
-        tmp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".png")
-        fig.write_image(tmp_file.name, format="png", scale=2)  # ✅ PNG berwarna
-        image_paths.append(tmp_file.name)
-    return image_paths
-
-
-run_financial_advisor()       
-
+run_financial_advisor()
