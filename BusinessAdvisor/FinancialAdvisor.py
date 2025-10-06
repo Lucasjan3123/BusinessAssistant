@@ -391,15 +391,25 @@ def run_financial_advisor():
             pdf.multi_cell(0, 10, ai_result)
 
             pdf_buffer = BytesIO()
-            pdf.output(pdf_buffer)
-            pdf_buffer.seek(0)
+            tmp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".pdf")
+            pdf.output(tmp_file.name)
 
+            # 🔹 Baca ulang ke memory untuk download
+            with open(tmp_file.name, "rb") as f:
+                pdf_data = f.read()
+
+            # 🔹 Tombol download
             st.download_button(
-                label="⬇️ Download Full PDF Report (No Kaleido)",
-                data=pdf_buffer,
+                label="⬇️ Download PDF Report",
+                data=pdf_data,
                 file_name="Financial_Advisor_Report.pdf",
                 mime="application/pdf"
             )
+
+            # 🔹 Hapus file sementara
+            os.unlink(tmp_file.name)
+
+
 
 
 
