@@ -362,38 +362,38 @@ def run_financial_advisor():
             st.markdown(f'<div class="result-box">{ai_result}</div>', unsafe_allow_html=True)
 
                 # === PDF Download with Charts ===
-           if st.button("📥 Download Full Financial Report (PDF)"):
+        if st.button("📥 Download Full Financial Report (PDF)"):
             from fpdf import FPDF
             from io import BytesIO
             import tempfile
             import os
-        
+
             pdf = FPDF()
             pdf.add_page()
             pdf.set_font("Arial", "B", 16)
             pdf.cell(200, 10, "Financial Advisor Report", ln=True, align="C")
-        
+
             pdf.set_font("Arial", size=12)
             pdf.multi_cell(0, 10, f"Company Goal: {goal}\n\nAI Analysis:\n{ai_result}\n")
-        
+
             pdf.set_font("Arial", "B", 14)
             pdf.cell(200, 10, "Financial Charts (Preview)", ln=True, align="L")
             pdf.ln(10)
-        
+
             # Gantikan grafik dengan teks representasi (karena tidak bisa export kaleido)
             pdf.set_font("Arial", size=11)
             pdf.multi_cell(0, 8, "Revenue vs Cost Chart\nProfit Trend Chart\nFinancial Composition Chart\nSWOT Analysis Chart")
             pdf.ln(5)
-        
+
             pdf.set_font("Arial", "B", 14)
             pdf.cell(200, 10, "AI Strategic Recommendation", ln=True, align="L")
             pdf.set_font("Arial", size=12)
             pdf.multi_cell(0, 10, ai_result)
-        
+
             pdf_buffer = BytesIO()
             pdf.output(pdf_buffer)
             pdf_buffer.seek(0)
-        
+
             st.download_button(
                 label="⬇️ Download Full PDF Report (No Kaleido)",
                 data=pdf_buffer,
@@ -403,5 +403,5 @@ def run_financial_advisor():
 
 
 
-run_financial_advisor()
 
+run_financial_advisor()
