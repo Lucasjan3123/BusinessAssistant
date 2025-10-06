@@ -364,52 +364,52 @@ def run_financial_advisor():
         if ai_result:
             st.markdown(f'<div class="result-box">{ai_result}</div>', unsafe_allow_html=True)
 
-                # === PDF Download with Charts ===
+         # === PDF Download with Charts ===
         if st.button("📥 Download Full Financial Report (PDF)"):
+        from fpdf import FPDF
+        import plotly.io as pio
+        import tempfile, os
+        from io import BytesIO
+    
+        pdf = FPDF()
+        pdf.add_page()
+        pdf.set_font("Arial", "B", 16)
+        pdf.cell(200, 10, "Financial Advisor Report", ln=True, align="C")
+    
+        pdf.set_font("Arial", size=12)
+        pdf.multi_cell(0, 10, f"Company Goal: {goal}\n\nAI Analysis:\n{ai_result}\n")
+    
+        pdf.set_font("Arial", "B", 14)
+        pdf.cell(200, 10, "Financial Charts", ln=True, align="L")
+    
+        # ✅ Simpan semua grafik ke file sementara (gunakan kaleido)
+        figures = [fig1, fig2, fig3, fig4]
+        image_paths = []
+        for i, fig in enumerate(figures):
+            tmp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".png")
+            fig.write_image(tmp_file.name, format="png", scale=2)  # Warna penuh
+            image_paths.append(tmp_file.name)
+            pdf.image(tmp_file.name, w=180)
+            pdf.ln(5)
+    
+        # ✅ Simpan hasil PDF ke memori
+        pdf_buffer = BytesIO()
+        pdf.output(pdf_buffer)
+        pdf_buffer.seek(0)
+    
+        # ✅ Tombol download PDF
+        st.download_button(
+            label="⬇️ Download Full PDF Report (Colored)",
+            data=pdf_buffer,
+            file_name="Financial_Advisor_Report.pdf",
+            mime="application/pdf"
+        )
+    
+        # ✅ Bersihkan file sementara
+        for path in image_paths:
+            os.unlink(path)
 
-            pdf = FPDF()
-            pdf.add_page()
-            pdf.set_font("Arial", "B", 16)
-            pdf.cell(200, 10, "Financial Advisor Report", ln=True, align="C")
-
-            pdf.set_font("Arial", size=12)
-            pdf.multi_cell(0, 10, f"Company Goal: {goal}\n\nAI Analysis:\n{ai_result}\n")
-
-            pdf.set_font("Arial", "B", 14)
-            pdf.cell(200, 10, "Financial Charts", ln=True, align="L")
-
-            # ✅ Simpan figure langsung ke file sementara tanpa kaleido
-            figures = [fig1, fig2, fig3, fig4]
-            image_paths = []
-
-            for i, fig in enumerate(figures):
-                tmp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".png")
-
-                # ⚡ gunakan full-color export tanpa kaleido
-                img_bytes = pio.to_image(fig, format="png", engine="json")  # JSON engine tidak butuh chrome
-                with open(tmp_file.name, "wb") as f:
-                    f.write(img_bytes)
-                image_paths.append(tmp_file.name)
-
-                pdf.image(tmp_file.name, w=180)
-                pdf.ln(5)
-
-            # ✅ Simpan hasil PDF ke memori
-            pdf_buffer = BytesIO()
-            pdf.output(pdf_buffer)
-            pdf_buffer.seek(0)
-
-            # ✅ Tombol Download PDF
-            st.download_button(
-                label="⬇️ Download Full PDF Report (Colored)",
-                data=pdf_buffer,
-                file_name="Financial_Advisor_Report.pdf",
-                mime="application/pdf"
-            )
-
-            # Hapus file sementara
-            for path in image_paths:
-                os.unlink(path)
 
 
 run_financial_advisor()
+
