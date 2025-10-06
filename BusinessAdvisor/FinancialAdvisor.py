@@ -1,14 +1,11 @@
-import os
 import streamlit as st
 import pdfplumber
 import plotly.express as px
 import pandas as pd
 import re
 import requests
-from io import BytesIO
-from fpdf import FPDF
 import tempfile
-import plotly.io as pio
+
 
 
 def save_figures_to_images(figures):
